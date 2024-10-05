@@ -6,7 +6,7 @@ use termion::event::Key;
 use termion::input::TermRead;
 use termion::{cursor, style, color};
 
-use crate::command::Command;
+use crate::command::Commands;
 use crate::record::{Record, Records};
 
 
@@ -16,7 +16,6 @@ pub struct Screen {
     prompt: String,
     records: Records,
     current_input: Vec<char>,
-    command_mode: bool,
     status_bar_text: String,
     title_bar_text: String,
 }
@@ -33,7 +32,6 @@ impl Screen {
             prompt: "<user>".to_string(),
             records: Records::new(),
             current_input: Vec::new(),
-            command_mode: false,
             status_bar_text: "Status Bar".to_string(),
             title_bar_text: "Title Bar".to_string(),
         }
@@ -66,56 +64,79 @@ impl Screen {
     }
 
     pub fn main_loop(&mut self) {
-        self.home();
+        self.redraw();
         let stdin = stdin();
         for k in stdin.keys() {
+            // TODO: Implement CTRL-U wipe
             match k.as_ref().unwrap() {
                 Key::Char('/') => {
                     print!("/");
-                    self.current_input.push('/');
-                    self.offset(1);
-                    if self.current_input.len() == 1 {
-                        self.command_mode = true;
-                    }
+                    self.push('/');
+                    let mut command = Commands::new(self.current_line());
+                    command.suggest(self);
                 }
                 Key::Char('\n') => {
                     // ENTER
-                    if self.command_mode {
-                        let mut command = Command::new(self.current_line());
+                    if self.command_mode() {
+                        let mut command = Commands::new(self.current_line());
                         command.run(self); // remove mut: command is mut for debug_status
-                        self.command_mode = false;
                     } else {
                         let record = Record::from_str(self.current_line());
                         self.records.push(record);
                     }
                     self.current_input.clear();
-                    self.home();
+                    self.redraw();
                 }
+                // TODO: only break when at offset 0
                 Key::Ctrl('d') => break,
-                Key::Backspace => self.offset(-1),
+                Key::Backspace => {
+                    let cached_command_mode = self.command_mode();
+                    self.pop();
+                    if self.command_mode() {
+                        let command = Commands::new(self.current_line());
+                        command.suggest(self);
+                    } else if cached_command_mode {
+                        self.set_status("");
+                    }
+                    self.redraw();
+                }
                 Key::Char(c) => {
                     print!("{}", c);
-                    self.current_input.push(*c);
-                    self.offset(1);
-                    if self.command_mode {
-                        let command = Command::new(self.current_line());
-                        command.suggest();
+                    self.push(*c);
+                    if self.command_mode() {
+                        let command = Commands::new(self.current_line());
+                        command.suggest(self);
                     }
                 }
                 _ => print!("{:?}", k)
             }
+            self.redraw();
         }
         self.flush();
     }
 
-    fn offset(&mut self, x: i16) {
-        if x < 0 {
+    fn push(&mut self, c: char) {
+        self.current_input.push(c);
+        self.x_offset += 1;
+    }
+
+    fn pop(&mut self) {
+        if self.x_offset >= 1 {
             self.current_input.pop();
-            self.x_offset -= x.abs() as usize;
+            self.x_offset -= 1;
+        }
+    }
+
+    fn _offset(&mut self, x: i16) {
+        if x < 0 {
+            let x = x.abs() as usize;
+            if self.x_offset >= x {
+                self.current_input.pop(); // todo: pop off x count, use drain maybe
+                self.x_offset -= x;
+            }
         } else {
             self.x_offset += x as usize;
         }
-        self.home();
     }
 
     /// The records that are in view
@@ -159,7 +180,7 @@ impl Screen {
         format!("{: <1$}", text, max_width)
     }
 
-    fn home(&mut self) {
+    fn redraw(&mut self) {
         self.write(&format!("{}", termion::clear::All,));
         let (xsize, y_offset) = Self::term_size();
 
@@ -184,5 +205,12 @@ impl Screen {
                 &self.current_line(),
             ) 
         );
+    }
+
+    fn command_mode(&self) -> bool {
+        match self.current_input.get(0) {
+            Some(s) => *s == '/',
+            None => false,
+        }
     }
 }
