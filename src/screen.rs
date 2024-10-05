@@ -29,7 +29,7 @@ impl Screen {
                 .into_alternate_screen()
                 .unwrap(),
             x_offset: 0,
-            prompt: "<user>".to_string(),
+            prompt: "[user]".to_string(),
             records: Records::new(),
             current_input: Vec::new(),
             status_bar_text: "Status Bar".to_string(),
@@ -71,7 +71,7 @@ impl Screen {
                 Key::Char('/') => {
                     print!("/");
                     self.push('/');
-                    let mut command = Commands::new(self.current_line());
+                    let command = Commands::new(self.current_line());
                     command.suggest(self);
                 }
                 Key::Char('\n') => {

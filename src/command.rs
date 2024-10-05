@@ -28,7 +28,6 @@ pub struct Commands {
     args: Vec<String>,
     raw_command: String, // Without the "/" prefix
     // for debug, since we can't just add debug prints
-    debug_status: String,
 }
 
 impl Commands {
@@ -44,20 +43,11 @@ impl Commands {
             .unwrap()
             .to_lowercase()
             .to_string();
-        let command = if raw_command.len() > 0 {
-            match Command::from_str(raw_command.as_str()) {
-                Ok(c) => Some(c),
-                _ => None,
-            }
-        } else {
-            None
-        };
         Self {
-            command, // Commands holds one command.
+            command: Self::to_command(&raw_command),
             raw_line: line,
             raw_command,
             args,
-            debug_status: format!("{:?}", Command::VARIANTS),
         }
     }
 
@@ -80,6 +70,7 @@ impl Commands {
                 screen.set_status(&format!("{}", name.to_uppercase()));
             }
             None  => {
+                // Coerce a Command enum from top suggestion
                 self.command = match self.suggest(screen) {
                     None => None,
                     Some(s) => match Self::to_command(s.as_str()) {
@@ -89,12 +80,10 @@ impl Commands {
                             Some(c)
                         }
                         _ => {
-                            if self.debug_status.len() > 0 {
-                                screen.set_status(&self.debug_status);
-                                self.debug_status.clear();
-                            } else {
-                                screen.set_status(&format!("Unmatched command {}", &self.raw_command));
-                            }
+                            // Give up (shouldn't actually come here.)
+                            screen.set_status(
+                                &format!("Unmatched command {}", &self.raw_command)
+                            );
                             None
                         }
                     }
