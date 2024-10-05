@@ -4,7 +4,7 @@ use strum_macros::EnumString;
 use strum::{VariantNames, IntoStaticStr};
 use strprox::Autocompleter;
 
-#[derive(Debug, EnumString, strum_macros::VariantNames, IntoStaticStr)]
+#[derive(Copy, Clone, Debug, EnumString, strum_macros::VariantNames, IntoStaticStr)]
 #[strum(serialize_all = "kebab-case")]
 enum Command {
     Clear,
@@ -18,7 +18,7 @@ enum Command {
 }
 
 // Testing out stuff
-#[derive(Debug, Default)]
+#[derive(Clone, Copy, Debug, Default)]
 struct NoArg {
 }
 
@@ -61,26 +61,54 @@ impl Commands {
         }
     }
 
+    fn to_command(raw: &str) -> Option<Command> {
+        if raw.len() > 0 {
+            match Command::from_str(raw) {
+                Ok(c) => Some(c),
+                _ => None,
+            }
+        } else {
+            None
+        }
+    }
+
     pub fn run(&mut self, screen: &mut Screen) {
         // Matching on the Command enum
         match &self.command {
-            Some(c) => screen.set_status(&format!("{}", &self.raw_command.to_uppercase())),
-            _ => {
-                if self.debug_status.len() > 0 {
-                    screen.set_status(&self.debug_status);
-                    self.debug_status.clear();
-                } else {
-                    screen.set_status(&format!("Unmatched command {}", &self.raw_command));
+            Some(c) => {
+                let name: &'static str = c.into();
+                screen.set_status(&format!("{}", name.to_uppercase()));
+            }
+            None  => {
+                self.command = match self.suggest(screen) {
+                    None => None,
+                    Some(s) => match Self::to_command(s.as_str()) {
+                        Some(c) => {
+                            let name: &'static str = c.into();
+                            screen.set_status(&format!("{}", name.to_uppercase()));
+                            Some(c)
+                        }
+                        _ => {
+                            if self.debug_status.len() > 0 {
+                                screen.set_status(&self.debug_status);
+                                self.debug_status.clear();
+                            } else {
+                                screen.set_status(&format!("Unmatched command {}", &self.raw_command));
+                            }
+                            None
+                        }
+                    }
                 }
             }
         }
     }
 
-    pub fn suggest(&self, screen: &mut Screen) {
+    pub fn suggest(&self, screen: &mut Screen) -> Option<String> {
         match &self.command {
             Some(c) => {
                 let name: &'static str = c.into();
                 screen.set_status(&format!("{}", name));
+                Some(name.to_string())
             }
             _ => {
                 if self.raw_command.len() > 0 {
@@ -91,8 +119,10 @@ impl Commands {
                         .map(|measured_prefix| measured_prefix.string.as_str())
                         .collect();
                     screen.set_status(&format!("/{}", result_strings[0]));
+                    Some(result_strings[0].to_string())
                 } else {
                     screen.set_status("/");
+                    None
                 }
             }
         }
