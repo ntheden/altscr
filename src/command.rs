@@ -1,4 +1,4 @@
-use strprox::Autocompleter;
+//use strprox::Autocompleter;
 use crate::screen::Screen;
 use casey::lower;
 
@@ -45,17 +45,18 @@ impl Command {
             .unwrap()
             .to_lowercase()
             .as_str() {
-            _ => None,
+            _ => None, 
         };
         Self {
-            command: command,
+            command,
             raw_command: line,
         }
     }
 
     pub fn run(&self, screen: &mut Screen) {
-        match self.command {
-            _ => screen.set_status("hi")
+        match &self.command {
+            Some(c) => screen.set_status(&format!("{}", &c.name().to_uppercase())),
+            _ => screen.set_status(&format!("Unmatched command {}", &self.raw_command))
         }
     }
 
