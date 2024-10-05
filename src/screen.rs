@@ -67,7 +67,6 @@ impl Screen {
         self.redraw();
         let stdin = stdin();
         for k in stdin.keys() {
-            // TODO: Implement CTRL-U wipe
             match k.as_ref().unwrap() {
                 Key::Char('/') => {
                     print!("/");
@@ -85,10 +84,18 @@ impl Screen {
                         self.records.push(record);
                     }
                     self.current_input.clear();
-                    self.redraw();
                 }
-                // TODO: only break when at offset 0
-                Key::Ctrl('d') => break,
+                // Only break when at offset 0
+                Key::Ctrl('d') => {
+                    if self.current_input.is_empty() {
+                        break;
+                    }
+                }
+                Key::Ctrl('u') => {
+                    self.current_input.clear();
+                    self.x_offset = 0;
+                    self.set_status("");
+                }
                 Key::Backspace => {
                     let cached_command_mode = self.command_mode();
                     self.pop();
@@ -98,7 +105,6 @@ impl Screen {
                     } else if cached_command_mode {
                         self.set_status("");
                     }
-                    self.redraw();
                 }
                 Key::Char(c) => {
                     print!("{}", c);

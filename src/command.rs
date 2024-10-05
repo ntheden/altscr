@@ -1,16 +1,19 @@
 use crate::screen::Screen;
 use std::str::FromStr;
 use strum_macros::EnumString;
-use strum::VariantNames;
+use strum::{VariantNames, IntoStaticStr};
 use strprox::Autocompleter;
 
-#[derive(Debug, EnumString, strum_macros::VariantNames)]
+#[derive(Debug, EnumString, strum_macros::VariantNames, IntoStaticStr)]
 #[strum(serialize_all = "kebab-case")]
 enum Command {
     Clear,
+    #[strum(serialize = "exit")]
     Exit(NoArg),
+    #[strum(serialize = "help", serialize = "h", serialize = "?")]
     Help,
     Menu,
+    #[strum(serialize = "quit", serialize = "q")]
     Quit,
 }
 
@@ -75,7 +78,10 @@ impl Commands {
 
     pub fn suggest(&self, screen: &mut Screen) {
         match &self.command {
-            Some(c) => screen.set_status(&format!("{}", self.raw_command)),
+            Some(c) => {
+                let name: &'static str = c.into();
+                screen.set_status(&format!("{}", name));
+            }
             _ => {
                 if self.raw_command.len() > 0 {
                     let autocompleter = Autocompleter::new(&Command::VARIANTS);

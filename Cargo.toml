@@ -6,6 +6,6 @@ edition = "2021"
 [dependencies]
 regex = "1.11.0"
 strprox = "0.3.3"
-strum = { version = "0.26.3", features = ["strum_macros"] }
+strum = { version = "0.26.3", features = ["derive", "strum_macros"] }
 strum_macros = "0.26.4"
 termion = "4.0.2"
