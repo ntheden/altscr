@@ -1,0 +1,10 @@
+[package]
+name = "altscr"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+casey = "0.4.0"
+regex = "1.11.0"
+strprox = "0.3.3"
+termion = "4.0.2"
