@@ -2,20 +2,21 @@
 use crate::screen::Screen;
 use casey::lower;
 use std::str::FromStr;
+use std::iter::enum_iterators;
 
 // modified macro from
 // https://stackoverflow.com/questions/32710187/how-do-i-get-an-enum-as-a-string
 macro_rules! enum_str {
     (enum $name:ident {
-        $($variant:ident),*,
+        $($variant:ident($arg:ident)),*,
     }) => {
         enum $name {
-            $($variant),*
+            $($variant($arg)),*
         }
         impl $name {
             fn name(&self) -> &'static str {
                 match self {
-                    $($name::$variant => lower!(stringify!($variant))),*
+                    $($name::$variant(_) => lower!(stringify!($variant))),*
                 }
             }
         }
@@ -24,28 +25,38 @@ macro_rules! enum_str {
 
 enum_str! {
     enum Commands {
-        Clear,
-        Exit,
-        Help,
-        Menu,
-        Quit,
+        Clear(NoArg),
+        Exit(NoArg),
+        Help(NoArg),
+        Menu(NoArg),
+        Quit(NoArg),
     }
 }
+
+// This is to allow variants with no arg to be shoe-horned
+// into enum_str! that allows variants to have an arg (because
+// absolutely, I will need commands that take an arg).
+struct NoArg {
+}
+
 
 impl FromStr for Commands {
     type Err = ();
     fn from_str(input: &str) -> Result<Commands, Self::Err> {
-        let mut args: Vec<String> = input.split(" ").map(|s| s.to_string()).collect();
+        let mut args: Vec<String> = input
+            .split(" ")
+            .map(|s| s.to_string())
+            .collect();
         match args.pop() {
             Some(command) => {
                 match command
                 .to_lowercase()
                 .as_str() {
-                    "clear" => Ok(Commands::Clear),
-                    "exit" => Ok(Commands::Exit),
-                    "help" => Ok(Commands::Help),
-                    "menu" => Ok(Commands::Menu),
-                    "quit" => Ok(Commands::Quit),
+                    "clear" => Ok(Commands::Clear(NoArg{})),
+                    "exit" => Ok(Commands::Exit(NoArg{})),
+                    "help" => Ok(Commands::Help(NoArg{})),
+                    "menu" => Ok(Commands::Menu(NoArg{})),
+                    "quit" => Ok(Commands::Quit(MyArg{})),
                     _ => Err(()),
                 }
             }
@@ -86,13 +97,14 @@ impl Command {
         }
     }
 
-    pub fn run(&self, screen: &mut Screen) {
+    pub fn run(&mut self, screen: &mut Screen) {
         // Matching on the Commands enum
         match &self.command {
             Some(c) => screen.set_status(&format!("{}", &c.name().to_uppercase())),
             _ => {
                 if self.debug_status.len() > 0 {
                     screen.set_status(&self.debug_status);
+                    self.debug_status.clear();
                 } else {
                     screen.set_status(&format!("Unmatched command {}", &self.raw_command));
                 }

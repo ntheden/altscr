@@ -81,8 +81,8 @@ impl Screen {
                 Key::Char('\n') => {
                     // ENTER
                     if self.command_mode {
-                        let command = Command::new(self.current_line());
-                        command.run(self);
+                        let mut command = Command::new(self.current_line());
+                        command.run(self); // remove mut: command is mut for debug_status
                         self.command_mode = false;
                     } else {
                         let record = Record::from_str(self.current_line());
